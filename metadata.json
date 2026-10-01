@@ -1,0 +1,6 @@
+{
+  "name": "XTag Verify — Xbox & MCPE Gamertag Availability Utility",
+  "description": "Xbox Live and Minecraft Bedrock (MCPE) gamertag availability verifier with rare list generation, exponential backoff rate-limit protection, CSV/TXT export, and scheduled batch runs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
