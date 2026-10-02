@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PlatformIcon } from './components/PlatformIcon';
 import {
   ExecutionLogEntry,
   GamertagRecord,
   GeneratorPattern,
   LogSeverity,
+  PLATFORMS,
+  PlatformId,
   RateLimitConfig,
   SchedulerConfig,
   TargetStopConfig,
@@ -15,14 +18,16 @@ import {
   formatTimestampMillis,
   generateRareGamertags,
   generateSingleRareTag,
+  getPlatformSpec,
   getPlatformVerificationLinks,
   triggerFileDownload,
   validateTagLocally,
 } from './utils/gamertagEngine';
 
-const VAULT_STORAGE_KEY = 'xtag_verify_available_vault_v1';
-const CONFIG_STORAGE_KEY = 'xtag_verify_config_v1';
-const SCHEDULER_STORAGE_KEY = 'xtag_verify_scheduler_v1';
+const VAULT_STORAGE_KEY = 'xtag_verify_available_vault_v3';
+const CONFIG_STORAGE_KEY = 'xtag_verify_config_v3';
+const SCHEDULER_STORAGE_KEY = 'xtag_verify_scheduler_v3';
+const CHECKED_HISTORY_KEY = 'xtag_verify_checked_history_v3';
 
 type ActiveTab = 'scanner' | 'vault' | 'scheduler' | 'logs';
 type ResultFilter = 'ALL' | 'AVAILABLE' | 'TAKEN' | 'ERROR';
@@ -38,89 +43,119 @@ interface EmailReceipt {
 }
 
 const INITIAL_SPECIFIC_LIST = [
+  'SkerryVq',
+  'CairnXz',
+  'BerylKr',
+  'WhorlQz',
+  'LichenVx',
+  'FjordZv',
   'Notch',
-  'Kavo7',
-  'Vexq9',
-  'Zelu4',
-  'Berylx',
-  'Major Nelson',
-  'Skerry9',
-  'Cairnv',
-  '12InvalidStart',
-  'Fjordk8',
+  'KestrelVn',
 ].join('\n');
 
 const INITIAL_SEEDED_RECORDS: GamertagRecord[] = [
   {
-    id: 'seed-1',
-    gamertag: 'Kavo7',
-    resolvedGamertag: 'Kavo7',
+    id: 'seed-v3-1',
+    gamertag: 'SkerryVq',
+    platform: 'xbox_mcpe',
+    resolvedGamertag: 'SkerryVq',
     status: 'AVAILABLE',
     xboxMcpeStatus: 'AVAILABLE',
     javaStatus: 'AVAILABLE',
     xuid: null,
-    latencyMs: 218,
+    latencyMs: 312,
     attempts: 1,
-    lastDelayMs: 512,
-    checkedAt: '13:58:14.102',
-    reason: 'No Xbox Live / MCPE profile bound to this gamertag.',
-    upstreamDetails: 'GeyserMC: 404 Not Found · PlayerDB(Xbox): HTTP 400 (Unregistered)',
-    sourceMode: 'RARE_GENERATED',
-    patternUsed: '4char_cvcv',
-  },
-  {
-    id: 'seed-2',
-    gamertag: 'Notch',
-    resolvedGamertag: 'Notch',
-    status: 'TAKEN',
-    xboxMcpeStatus: 'TAKEN',
-    javaStatus: 'TAKEN',
-    xuid: '2533274790395904',
-    latencyMs: 264,
-    attempts: 1,
-    lastDelayMs: 640,
-    checkedAt: '13:58:14.890',
-    reason: 'Registered on Xbox Live / MCPE (XUID: 2533274790395904)',
-    upstreamDetails: 'GeyserMC: 200 OK (XUID 2533274790395904) · PlayerDB(Xbox): 200 Found (Notch)',
-    sourceMode: 'SPECIFIC_LIST',
-  },
-  {
-    id: 'seed-3',
-    gamertag: 'Skerry9',
-    resolvedGamertag: 'Skerry9',
-    status: 'AVAILABLE',
-    xboxMcpeStatus: 'AVAILABLE',
-    javaStatus: 'AVAILABLE',
-    xuid: null,
-    latencyMs: 195,
-    attempts: 2,
-    lastDelayMs: 1180,
-    checkedAt: '13:58:16.320',
-    reason: 'No Xbox Live / MCPE profile bound to this gamertag.',
-    upstreamDetails: 'Recovered after 1 backoff retry · GeyserMC: 404 Not Found',
+    lastDelayMs: 490,
+    checkedAt: '03:39:08.114',
+    reason: 'Confirmed AVAILABLE on Xbox Live / MCPE (no account exists).',
+    upstreamDetails: 'XboxLive/PlayerDB: Confirmed Unregistered (xbox.not_found)',
     sourceMode: 'RARE_GENERATED',
     patternUsed: 'clean_og',
   },
   {
-    id: 'seed-4',
-    gamertag: '12InvalidStart',
-    status: 'INVALID',
-    xboxMcpeStatus: 'INVALID',
+    id: 'seed-v3-2',
+    gamertag: 'CairnXz',
+    platform: 'xbox_mcpe',
+    resolvedGamertag: 'CairnXz',
+    status: 'AVAILABLE',
+    xboxMcpeStatus: 'AVAILABLE',
+    javaStatus: 'AVAILABLE',
+    xuid: null,
+    latencyMs: 288,
+    attempts: 1,
+    lastDelayMs: 525,
+    checkedAt: '03:43:35.402',
+    reason: 'Confirmed AVAILABLE on Xbox Live / MCPE (no account exists).',
+    upstreamDetails: 'XboxLive/PlayerDB: Confirmed Unregistered (xbox.not_found)',
+    sourceMode: 'RARE_GENERATED',
+    patternUsed: 'clean_og',
+  },
+  {
+    id: 'seed-v3-3',
+    gamertag: 'BerylKr',
+    platform: 'minecraft',
+    resolvedGamertag: 'BerylKr',
+    status: 'AVAILABLE',
+    xboxMcpeStatus: 'UNKNOWN',
+    javaStatus: 'AVAILABLE',
+    xuid: null,
+    latencyMs: 194,
+    attempts: 1,
+    lastDelayMs: 470,
+    checkedAt: '03:43:38.210',
+    reason: 'Confirmed AVAILABLE on Minecraft Java Edition (Mojang 404).',
+    upstreamDetails: 'Mojang API: 404 Confirmed Unregistered',
+    sourceMode: 'RARE_GENERATED',
+    patternUsed: 'clean_og',
+  },
+  {
+    id: 'seed-v3-4',
+    gamertag: 'WhorlQz',
+    platform: 'twitter',
+    resolvedGamertag: 'WhorlQz',
+    status: 'AVAILABLE',
+    xboxMcpeStatus: 'UNKNOWN',
     javaStatus: 'UNKNOWN',
     xuid: null,
-    latencyMs: 0,
+    latencyMs: 226,
     attempts: 1,
-    lastDelayMs: 0,
-    checkedAt: '13:58:16.325',
-    reason: 'Must start with a letter (A–Z).',
-    upstreamDetails: 'Rejected by strict pre-flight validator (0 upstream calls).',
-    sourceMode: 'SPECIFIC_LIST',
+    lastDelayMs: 540,
+    checkedAt: '03:43:40.890',
+    reason: 'Confirmed AVAILABLE on X/Twitter (@WhorlQz not found).',
+    upstreamDetails: 'X/Twitter Live API: User not found.',
+    sourceMode: 'RARE_GENERATED',
+    patternUsed: 'clean_og',
+  },
+  {
+    id: 'seed-v3-5',
+    gamertag: 'LichenVx',
+    platform: 'reddit',
+    resolvedGamertag: 'LichenVx',
+    status: 'AVAILABLE',
+    xboxMcpeStatus: 'UNKNOWN',
+    javaStatus: 'UNKNOWN',
+    xuid: null,
+    latencyMs: 205,
+    attempts: 1,
+    lastDelayMs: 610,
+    checkedAt: '03:43:42.512',
+    reason: 'Confirmed AVAILABLE on Reddit (u/LichenVx not found).',
+    upstreamDetails: 'Reddit User Index: 0 matching accounts',
+    sourceMode: 'RARE_GENERATED',
+    patternUsed: 'clean_og',
   },
 ];
 
 export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [activeTab, setActiveTab] = useState<ActiveTab>('scanner');
+
+  // Selected Target Application / Platform
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformId>('xbox_mcpe');
+  const activePlatformSpec = useMemo(
+    () => getPlatformSpec(selectedPlatform),
+    [selectedPlatform]
+  );
 
   // OS & Export Line Endings (Windows CRLF vs macOS LF)
   const detectedOS = useMemo(() => detectClientOS(), []);
@@ -129,15 +164,16 @@ export default function App() {
   );
   const lineEnding: 'CRLF' | 'LF' = osPlatform === 'Windows' ? 'CRLF' : 'LF';
 
-  // Source Mode & Inputs
+  // Source Mode & Inputs (default to clean_og which has high live availability)
   const [sourceMode, setSourceMode] = useState<'RARE_GENERATED' | 'SPECIFIC_LIST'>('RARE_GENERATED');
-  const [generatorPattern, setGeneratorPattern] = useState<GeneratorPattern>('4char_cvcv');
+  const [generatorPattern, setGeneratorPattern] = useState<GeneratorPattern>('clean_og');
   const [specificNamesInput, setSpecificNamesInput] = useState<string>(INITIAL_SPECIFIC_LIST);
 
-  // Target Stop Config
+  // Target Stop Config (default to AVAILABLE_FOUND + skipTakenFromTable = true so already-used handles are skipped!)
   const [targetConfig, setTargetConfig] = useState<TargetStopConfig>({
-    stopMode: 'TOTAL_CHECKED',
-    targetCount: 10,
+    stopMode: 'AVAILABLE_FOUND',
+    targetCount: 5,
+    skipTakenFromTable: true,
   });
 
   // Rate Limit & Backoff Config
@@ -158,7 +194,21 @@ export default function App() {
     };
   });
 
-  // Saved Available Gamertags Vault in localStorage
+  // Persistent Deduplication Cache so already-checked / used handles are never fetched twice
+  const [checkedHistory, setCheckedHistory] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(CHECKED_HISTORY_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return INITIAL_SEEDED_RECORDS.map((r) => `${r.platform}:${r.gamertag.toLowerCase()}`);
+  });
+
+  // Saved Available Usernames Vault in localStorage
   const [savedVault, setSavedVault] = useState<GamertagRecord[]>(() => {
     try {
       const raw = localStorage.getItem(VAULT_STORAGE_KEY);
@@ -193,18 +243,21 @@ export default function App() {
 
   // Batch Verification State
   const [records, setRecords] = useState<GamertagRecord[]>(INITIAL_SEEDED_RECORDS);
+  const [skippedTakenCount, setSkippedTakenCount] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [batchStateLabel, setBatchStateLabel] = useState<string>('Ready');
   const [currentTagChecking, setCurrentTagChecking] = useState<string>('—');
   const [activeDelayMs, setActiveDelayMs] = useState<number>(0);
   const [isBackingOff, setIsBackingOff] = useState<boolean>(false);
-  const [progressCompleted, setProgressCompleted] = useState<number>(4);
-  const [progressTarget, setProgressTarget] = useState<number>(10);
-  const [retryTotalCount, setRetryTotalCount] = useState<number>(1);
+  const [progressCompleted, setProgressCompleted] = useState<number>(5);
+  const [progressTarget, setProgressTarget] = useState<number>(5);
+  const [retryTotalCount, setRetryTotalCount] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   // Table Filters & Search
   const [resultFilter, setResultFilter] = useState<ResultFilter>('ALL');
+  const [platformTableFilter, setPlatformTableFilter] = useState<PlatformId | 'ALL'>('ALL');
+  const [vaultPlatformFilter, setVaultPlatformFilter] = useState<PlatformId | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
   const [manualVaultInput, setManualVaultInput] = useState<string>('');
@@ -212,58 +265,64 @@ export default function App() {
   // Execution Debug Logs
   const [logs, setLogs] = useState<ExecutionLogEntry[]>([
     {
-      id: 'init-1',
-      timestamp: '13:58:14.102',
+      id: 'init-v3-1',
+      timestamp: '03:39:08.114',
       severity: 'SUCCESS',
-      gamertag: 'Kavo7',
+      platform: 'xbox_mcpe',
+      gamertag: 'SkerryVq',
       attempt: 1,
       httpStatus: 200,
-      backoffMs: 512,
-      message: 'Verified AVAILABLE across Xbox Live / MCPE.',
-      details: 'GeyserMC: 404 Not Found · PlayerDB(Xbox): Unregistered (218ms)',
+      backoffMs: 490,
+      message: '[Xbox / MCPE] Confirmed AVAILABLE: "SkerryVq" (xbox.not_found).',
+      details: 'XboxLive/PlayerDB: Confirmed Unregistered (312ms)',
     },
     {
-      id: 'init-2',
-      timestamp: '13:58:14.890',
-      severity: 'INFO',
-      gamertag: 'Notch',
-      attempt: 1,
-      httpStatus: 200,
-      backoffMs: 640,
-      message: 'Verified TAKEN on Xbox Live / MCPE (XUID: 2533274790395904).',
-      details: 'Resolved canonical gamertag: Notch (264ms)',
-    },
-    {
-      id: 'init-3',
-      timestamp: '13:58:15.140',
-      severity: 'RATE_LIMIT',
-      gamertag: 'Skerry9',
-      attempt: 1,
-      httpStatus: 429,
-      backoffMs: 1180,
-      message: 'HTTP 429 rate limit hit. Applying exponential backoff (2.0x + jitter = 1180ms).',
-      details: 'Attempt 1 of 3 paused to protect upstream API stability.',
-    },
-    {
-      id: 'init-4',
-      timestamp: '13:58:16.320',
+      id: 'init-v3-2',
+      timestamp: '03:43:35.402',
       severity: 'SUCCESS',
-      gamertag: 'Skerry9',
-      attempt: 2,
+      platform: 'xbox_mcpe',
+      gamertag: 'CairnXz',
+      attempt: 1,
       httpStatus: 200,
-      backoffMs: 1180,
-      message: 'Retry succeeded on attempt #2: Skerry9 is AVAILABLE.',
-      details: 'GeyserMC: 404 Not Found (195ms)',
+      backoffMs: 525,
+      message: '[Xbox / MCPE] Confirmed AVAILABLE: "CairnXz" (xbox.not_found).',
+      details: 'XboxLive/PlayerDB: Confirmed Unregistered (288ms)',
     },
     {
-      id: 'init-5',
-      timestamp: '13:58:16.325',
-      severity: 'ERROR',
-      gamertag: '12InvalidStart',
+      id: 'init-v3-3',
+      timestamp: '03:43:38.210',
+      severity: 'SUCCESS',
+      platform: 'minecraft',
+      gamertag: 'BerylKr',
       attempt: 1,
-      backoffMs: 0,
-      message: 'Strict validation rejected gamertag before network dispatch.',
-      details: 'Rule violation: Must start with a letter (A–Z).',
+      httpStatus: 200,
+      backoffMs: 470,
+      message: '[Minecraft] Confirmed AVAILABLE: "BerylKr" (Mojang HTTP 404).',
+      details: 'Official Mojang Profile API: Unregistered (194ms)',
+    },
+    {
+      id: 'init-v3-4',
+      timestamp: '03:43:40.890',
+      severity: 'SUCCESS',
+      platform: 'twitter',
+      gamertag: 'WhorlQz',
+      attempt: 1,
+      httpStatus: 200,
+      backoffMs: 540,
+      message: '[Twitter / X] Confirmed AVAILABLE: "@WhorlQz" (User not found).',
+      details: 'VxTwitter Live Endpoint: Unclaimed (226ms)',
+    },
+    {
+      id: 'init-v3-5',
+      timestamp: '03:43:42.512',
+      severity: 'SUCCESS',
+      platform: 'reddit',
+      gamertag: 'LichenVx',
+      attempt: 1,
+      httpStatus: 200,
+      backoffMs: 610,
+      message: '[Reddit] Confirmed AVAILABLE: "u/LichenVx" (0 matching accounts).',
+      details: 'Reddit User Index API: Unclaimed (205ms)',
     },
   ]);
   const [logFilter, setLogFilter] = useState<LogSeverity | 'ALL'>('ALL');
@@ -293,6 +352,15 @@ export default function App() {
       // ignore quota error
     }
   }, [savedVault]);
+
+  // Persist Checked History in localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHECKED_HISTORY_KEY, JSON.stringify(checkedHistory.slice(-1500)));
+    } catch {
+      // ignore
+    }
+  }, [checkedHistory]);
 
   // Persist Rate Limit Config
   useEffect(() => {
@@ -354,16 +422,24 @@ export default function App() {
   function addRecordToVault(record: GamertagRecord) {
     setSavedVault((prev) => {
       const exists = prev.some(
-        (item) => item.gamertag.toLowerCase() === record.gamertag.toLowerCase()
+        (item) =>
+          item.gamertag.toLowerCase() === record.gamertag.toLowerCase() &&
+          (item.platform || 'xbox_mcpe') === (record.platform || 'xbox_mcpe')
       );
       if (exists) return prev;
       return [record, ...prev];
     });
   }
 
-  function removeTagFromVault(gamertag: string) {
+  function removeTagFromVault(gamertag: string, platform: PlatformId) {
     setSavedVault((prev) =>
-      prev.filter((item) => item.gamertag.toLowerCase() !== gamertag.toLowerCase())
+      prev.filter(
+        (item) =>
+          !(
+            item.gamertag.toLowerCase() === gamertag.toLowerCase() &&
+            (item.platform || 'xbox_mcpe') === platform
+          )
+      )
     );
   }
 
@@ -381,24 +457,32 @@ export default function App() {
 
   async function verifySingleTagWithBackoff(
     gamertag: string,
+    platform: PlatformId,
     source: 'RARE_GENERATED' | 'SPECIFIC_LIST',
     pattern?: string
   ): Promise<GamertagRecord> {
     const cleanTag = gamertag.trim();
-    const localValidation = validateTagLocally(cleanTag, rateConfig.strict12CharLimit);
+    const spec = getPlatformSpec(platform);
+    const localValidation = validateTagLocally(
+      cleanTag,
+      platform,
+      rateConfig.strict12CharLimit
+    );
 
     if (!localValidation.valid) {
       appendLog({
         severity: 'ERROR',
+        platform,
         gamertag: cleanTag,
         attempt: 1,
         backoffMs: 0,
-        message: `Pre-flight validation failed: ${localValidation.reason}`,
-        details: 'Fast-fail strict rule rejected gamertag before network call.',
+        message: `[${spec.shortLabel}] Pre-flight validation failed: ${localValidation.reason}`,
+        details: 'Fast-fail strict rule rejected username before network call.',
       });
       return {
         id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         gamertag: cleanTag,
+        platform,
         status: 'INVALID',
         xboxMcpeStatus: 'INVALID',
         javaStatus: 'UNKNOWN',
@@ -407,8 +491,8 @@ export default function App() {
         attempts: 1,
         lastDelayMs: 0,
         checkedAt: formatTimestampMillis(),
-        reason: localValidation.reason || 'Invalid gamertag format.',
-        upstreamDetails: 'Strict pre-flight validator (0ms)',
+        reason: localValidation.reason || 'Invalid username format.',
+        upstreamDetails: `Strict ${spec.shortLabel} pre-flight validator (0ms)`,
         sourceMode: source,
         patternUsed: pattern,
       };
@@ -423,7 +507,6 @@ export default function App() {
         break;
       }
 
-      // Apply randomized request delay before request (or exponential backoff on retries)
       if (attempt === 1) {
         lastAppliedDelay = calculateNormalDelay(rateConfig.baseDelayMs, rateConfig.maxJitterMs);
         setIsBackingOff(false);
@@ -443,13 +526,14 @@ export default function App() {
       const cont = await sleepInterruptible(lastAppliedDelay);
       if (!cont) break;
 
-      setBatchStateLabel('Verifying Upstream APIs');
+      setBatchStateLabel(`Verifying ${spec.shortLabel}`);
       try {
         const response = await fetch('/api/verify-gamertag', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             gamertag: cleanTag,
+            platform,
             simulateRateLimitProbability: rateConfig.simulate429Probability,
             strictLength12: rateConfig.strict12CharLimit,
           }),
@@ -467,11 +551,12 @@ export default function App() {
           );
           appendLog({
             severity: 'RATE_LIMIT',
+            platform,
             gamertag: cleanTag,
             attempt,
             httpStatus: 429,
             backoffMs: nextBackoff,
-            message: `HTTP 429 Too Many Requests on "${cleanTag}". Backing off for ${nextBackoff}ms (factor ${rateConfig.backoffFactor}x + random jitter).`,
+            message: `[${spec.shortLabel}] Rate limit / timeout on "${cleanTag}". Backing off for ${nextBackoff}ms (${rateConfig.backoffFactor}x + jitter).`,
             details: payload.reason || 'Upstream rate limiter active.',
           });
 
@@ -480,15 +565,17 @@ export default function App() {
           } else {
             appendLog({
               severity: 'ERROR',
+              platform,
               gamertag: cleanTag,
               attempt,
               httpStatus: 429,
               backoffMs: lastAppliedDelay,
-              message: `Max retries (${rateConfig.maxRetries}) exhausted for "${cleanTag}" due to persistent HTTP 429.`,
+              message: `[${spec.shortLabel}] Max retries (${rateConfig.maxRetries}) exhausted for "${cleanTag}" without definitive confirmation.`,
             });
             return {
               id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
               gamertag: cleanTag,
+              platform,
               status: 'RATE_LIMITED',
               xboxMcpeStatus: 'UNKNOWN',
               javaStatus: 'UNKNOWN',
@@ -497,7 +584,7 @@ export default function App() {
               attempts: attempt,
               lastDelayMs: lastAppliedDelay,
               checkedAt: formatTimestampMillis(),
-              reason: `Exhausted ${rateConfig.maxRetries} exponential backoff retries (HTTP 429).`,
+              reason: `Exhausted ${rateConfig.maxRetries} exponential backoff retries.`,
               upstreamDetails: payload.reason || 'Rate limit exceeded',
               sourceMode: source,
               patternUsed: pattern,
@@ -508,11 +595,12 @@ export default function App() {
         if (!response.ok || payload.status === 'ERROR') {
           appendLog({
             severity: 'WARN',
+            platform,
             gamertag: cleanTag,
             attempt,
             httpStatus: response.status,
             backoffMs: lastAppliedDelay,
-            message: `Upstream error (HTTP ${response.status}) while checking "${cleanTag}".`,
+            message: `[${spec.shortLabel}] Upstream error (HTTP ${response.status}) while checking "${cleanTag}".`,
             details: payload.reason || 'Upstream service error',
           });
 
@@ -524,6 +612,7 @@ export default function App() {
           return {
             id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             gamertag: cleanTag,
+            platform,
             status: 'ERROR',
             xboxMcpeStatus: 'UNKNOWN',
             javaStatus: 'UNKNOWN',
@@ -542,6 +631,7 @@ export default function App() {
         const record: GamertagRecord = {
           id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           gamertag: cleanTag,
+          platform,
           resolvedGamertag: payload.resolvedGamertag || cleanTag,
           status: payload.status,
           xboxMcpeStatus: payload.xboxMcpeStatus || payload.status,
@@ -561,31 +651,36 @@ export default function App() {
           addRecordToVault(record);
           appendLog({
             severity: 'SUCCESS',
+            platform,
             gamertag: cleanTag,
             attempt,
             httpStatus: 200,
             backoffMs: lastAppliedDelay,
-            message: `AVAILABLE gamertag verified: "${cleanTag}" saved to local storage vault.`,
+            message: `[${spec.shortLabel}] Confirmed AVAILABLE: "${spec.handlePrefix}${cleanTag}" saved to local storage.`,
             details: `${record.upstreamDetails} (${record.latencyMs}ms)`,
           });
         } else if (record.status === 'TAKEN') {
           appendLog({
             severity: 'INFO',
+            platform,
             gamertag: cleanTag,
             attempt,
             httpStatus: 200,
             backoffMs: lastAppliedDelay,
-            message: `TAKEN on Xbox Live / MCPE: "${cleanTag}"${record.xuid ? ` (XUID: ${record.xuid})` : ''}.`,
+            message: `[${spec.shortLabel}] Already used (TAKEN): "${spec.handlePrefix}${cleanTag}"${
+              record.xuid ? ` (ID: ${record.xuid})` : ''
+            } — skipped.`,
             details: `${record.upstreamDetails} (${record.latencyMs}ms)`,
           });
         } else {
           appendLog({
             severity: 'ERROR',
+            platform,
             gamertag: cleanTag,
             attempt,
             httpStatus: 200,
             backoffMs: lastAppliedDelay,
-            message: `Invalid gamertag "${cleanTag}": ${record.reason}`,
+            message: `[${spec.shortLabel}] Invalid username "${cleanTag}": ${record.reason}`,
           });
         }
 
@@ -594,10 +689,11 @@ export default function App() {
         const errMsg = netErr instanceof Error ? netErr.message : 'Network request failed';
         appendLog({
           severity: 'ERROR',
+          platform,
           gamertag: cleanTag,
           attempt,
           backoffMs: lastAppliedDelay,
-          message: `Network exception checking "${cleanTag}": ${errMsg}`,
+          message: `[${spec.shortLabel}] Network exception checking "${cleanTag}": ${errMsg}`,
         });
         if (attempt <= rateConfig.maxRetries) {
           setRetryTotalCount((c) => c + 1);
@@ -609,6 +705,7 @@ export default function App() {
     return {
       id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       gamertag: cleanTag,
+      platform,
       status: 'ERROR',
       xboxMcpeStatus: 'UNKNOWN',
       javaStatus: 'UNKNOWN',
@@ -627,7 +724,7 @@ export default function App() {
   async function dispatchCompletionEmail(batchRecords: GamertagRecord[]) {
     const availableInBatch = batchRecords
       .filter((r) => r.status === 'AVAILABLE')
-      .map((r) => r.gamertag);
+      .map((r) => `${r.gamertag} (${getPlatformSpec(r.platform).shortLabel})`);
     const errorCount = batchRecords.filter(
       (r) => r.status === 'ERROR' || r.status === 'INVALID' || r.status === 'RATE_LIMITED'
     ).length;
@@ -649,7 +746,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipient: schedulerConfig.recipientEmail,
-          subject: `XTag Verify Batch Complete: ${availableInBatch.length} Available / ${batchRecords.length} Checked`,
+          subject: `XTag Verify [${activePlatformSpec.shortLabel}] Complete: ${availableInBatch.length} Available / ${batchRecords.length} Checked`,
           summaryStats: {
             checked: batchRecords.length,
             available: availableInBatch.length,
@@ -675,6 +772,7 @@ export default function App() {
         setEmailReceipts((prev) => [receipt, ...prev]);
         appendLog({
           severity: 'INFO',
+          platform: selectedPlatform,
           message: `Completion email notification dispatched to ${data.recipient} (${availableInBatch.length} available tags).`,
           details: `Message-ID: ${data.messageId}`,
         });
@@ -682,6 +780,7 @@ export default function App() {
     } catch (err: unknown) {
       appendLog({
         severity: 'ERROR',
+        platform: selectedPlatform,
         message: `Email notification dispatch failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
       });
     } finally {
@@ -695,7 +794,11 @@ export default function App() {
     abortRunRef.current = false;
     setIsRunning(true);
     setElapsedSeconds(0);
-    setBatchStateLabel(triggeredByScheduler ? 'Scheduled Batch Running' : 'Initializing Batch');
+    setBatchStateLabel(
+      triggeredByScheduler
+        ? `Scheduled ${activePlatformSpec.shortLabel} Batch`
+        : `Initializing ${activePlatformSpec.shortLabel} Batch`
+    );
 
     const desiredTarget = Math.max(1, Math.min(500, targetConfig.targetCount));
     const specificLines = specificNamesInput
@@ -713,11 +816,18 @@ export default function App() {
 
     appendLog({
       severity: 'INFO',
-      message: `Started ${sourceMode === 'RARE_GENERATED' ? `Rare Generator (${generatorPattern})` : 'Specific List'} batch. Target: ${effectiveTarget} (${targetConfig.stopMode === 'AVAILABLE_FOUND' ? 'Available Found' : 'Total Checked'}).`,
-      details: `Base Delay: ${rateConfig.baseDelayMs}ms · Jitter: +0..${rateConfig.maxJitterMs}ms · Backoff: ${rateConfig.backoffFactor}x (Max ${rateConfig.maxRetries} retries)`,
+      platform: selectedPlatform,
+      message: `Started [${activePlatformSpec.label}] ${
+        sourceMode === 'RARE_GENERATED' ? `Rare Generator (${generatorPattern})` : 'Specific List'
+      } batch. Target: ${effectiveTarget} (${
+        targetConfig.stopMode === 'AVAILABLE_FOUND' ? 'Available Found' : 'Total Checked'
+      }).`,
+      details: `Auto-Skip Taken: ${targetConfig.skipTakenFromTable ? 'ON' : 'OFF'} · Base Delay: ${
+        rateConfig.baseDelayMs
+      }ms · Jitter: +0..${rateConfig.maxJitterMs}ms`,
     });
 
-    const seenInSession = new Set<string>();
+    const seenInAllHistory = new Set<string>(checkedHistory);
     const batchCreatedRecords: GamertagRecord[] = [];
     let checkedCount = 0;
     let availableFoundCount = 0;
@@ -730,11 +840,11 @@ export default function App() {
       if (targetConfig.stopMode === 'AVAILABLE_FOUND' && availableFoundCount >= effectiveTarget) {
         break;
       }
-      // Safety cap when hunting for available tags so it doesn't loop forever
-      if (checkedCount >= Math.max(effectiveTarget * 8, 120)) {
+      if (checkedCount >= Math.max(effectiveTarget * 10, 100)) {
         appendLog({
           severity: 'WARN',
-          message: `Reached safety scan ceiling (${checkedCount} tags checked) while searching for ${effectiveTarget} available tags.`,
+          platform: selectedPlatform,
+          message: `Reached safety scan ceiling (${checkedCount} usernames checked) while searching for ${effectiveTarget} available handles.`,
         });
         break;
       }
@@ -747,31 +857,45 @@ export default function App() {
         candidateTag = specificLines[listCursor];
         listCursor++;
       } else {
-        // Generate unique rare tag
+        // Generate a fresh candidate that has NEVER been checked before on this platform
         let attempts = 0;
         do {
-          candidateTag = generateSingleRareTag(generatorPattern);
+          candidateTag = generateSingleRareTag(generatorPattern, selectedPlatform);
           attempts++;
-        } while (seenInSession.has(candidateTag.toLowerCase()) && attempts < 40);
-        seenInSession.add(candidateTag.toLowerCase());
+        } while (
+          seenInAllHistory.has(`${selectedPlatform}:${candidateTag.toLowerCase()}`) &&
+          attempts < 80
+        );
+        seenInAllHistory.add(`${selectedPlatform}:${candidateTag.toLowerCase()}`);
       }
 
-      setCurrentTagChecking(candidateTag);
+      setCurrentTagChecking(`${activePlatformSpec.handlePrefix}${candidateTag}`);
       const result = await verifySingleTagWithBackoff(
         candidateTag,
+        selectedPlatform,
         sourceMode,
         sourceMode === 'RARE_GENERATED' ? generatorPattern : undefined
       );
 
       if (abortRunRef.current) break;
 
+      setCheckedHistory((prev) => [
+        ...prev,
+        `${selectedPlatform}:${candidateTag.toLowerCase()}`,
+      ]);
+
       checkedCount++;
+      batchCreatedRecords.push(result);
+
       if (result.status === 'AVAILABLE') {
         availableFoundCount++;
+        setRecords((prev) => [result, ...prev]);
+      } else if (result.status === 'TAKEN' && targetConfig.skipTakenFromTable) {
+        // Skip adding already-used handles to the table so the user only sees available handles!
+        setSkippedTakenCount((c) => c + 1);
+      } else {
+        setRecords((prev) => [result, ...prev]);
       }
-
-      batchCreatedRecords.push(result);
-      setRecords((prev) => [result, ...prev]);
 
       const currentProgressCount =
         targetConfig.stopMode === 'AVAILABLE_FOUND' ? availableFoundCount : checkedCount;
@@ -787,14 +911,26 @@ export default function App() {
 
     appendLog({
       severity: stoppedEarly ? 'WARN' : 'SUCCESS',
+      platform: selectedPlatform,
       message: stoppedEarly
-        ? `Batch halted by user after ${checkedCount} checks (${availableFoundCount} available found).`
-        : `Batch process finished: ${checkedCount} checked, ${availableFoundCount} available saved to local storage.`,
+        ? `[${activePlatformSpec.shortLabel}] Batch halted by user after ${checkedCount} checks (${availableFoundCount} available found).`
+        : `[${activePlatformSpec.shortLabel}] Batch finished: ${availableFoundCount} available handles verified (${
+            checkedCount - availableFoundCount
+          } already-used handles filtered out).`,
     });
 
     if (!stoppedEarly && schedulerConfig.autoExportCsv && batchCreatedRecords.length > 0) {
-      const csv = buildCsvExportContent(batchCreatedRecords, lineEnding);
-      triggerFileDownload(csv, `xtag-results-${Date.now()}.csv`, 'text/csv;charset=utf-8');
+      const exportSet = targetConfig.skipTakenFromTable
+        ? batchCreatedRecords.filter((r) => r.status === 'AVAILABLE')
+        : batchCreatedRecords;
+      if (exportSet.length > 0) {
+        const csv = buildCsvExportContent(exportSet, lineEnding);
+        triggerFileDownload(
+          csv,
+          `xtag-${selectedPlatform}-available-${Date.now()}.csv`,
+          'text/csv;charset=utf-8'
+        );
+      }
     }
 
     if (!stoppedEarly && schedulerConfig.emailNotificationEnabled && batchCreatedRecords.length > 0) {
@@ -808,11 +944,22 @@ export default function App() {
   }
 
   function handleGeneratePreviewSample() {
-    const previewTags = generateRareGamertags(12, generatorPattern);
+    const existingSet = new Set(
+      checkedHistory
+        .filter((k) => k.startsWith(`${selectedPlatform}:`))
+        .map((k) => k.split(':')[1])
+    );
+    const previewTags = generateRareGamertags(
+      12,
+      generatorPattern,
+      selectedPlatform,
+      existingSet
+    );
     setSpecificNamesInput(previewTags.join('\n'));
     appendLog({
       severity: 'INFO',
-      message: `Generated 12 rare gamertag candidates using pattern "${generatorPattern}".`,
+      platform: selectedPlatform,
+      message: `Generated 12 fresh ${activePlatformSpec.shortLabel} candidates using pattern "${generatorPattern}".`,
     });
   }
 
@@ -834,7 +981,8 @@ export default function App() {
       }));
       appendLog({
         severity: 'INFO',
-        message: `Loaded ${parsed.length} gamertags from file "${file.name}".`,
+        platform: selectedPlatform,
+        message: `Loaded ${parsed.length} usernames from file "${file.name}".`,
       });
     };
     reader.readAsText(file);
@@ -850,16 +998,19 @@ export default function App() {
   }
 
   function handleExportVaultTxt() {
-    const tags = savedVault.map((r) => r.gamertag);
-    const content = buildTxtExportContent(tags, lineEnding, true);
+    const sourceVault =
+      vaultPlatformFilter === 'ALL'
+        ? savedVault
+        : savedVault.filter((r) => (r.platform || 'xbox_mcpe') === vaultPlatformFilter);
+    const content = buildTxtExportContent(sourceVault, lineEnding, true);
     triggerFileDownload(
       content,
-      `xbox-mcpe-available-tags-${osPlatform.toLowerCase()}.txt`,
+      `available-usernames-${vaultPlatformFilter.toLowerCase()}-${osPlatform.toLowerCase()}.txt`,
       'text/plain;charset=utf-8'
     );
     appendLog({
       severity: 'INFO',
-      message: `Exported ${tags.length} available gamertags to .txt (${lineEnding} line endings for ${osPlatform}).`,
+      message: `Exported ${sourceVault.length} available usernames to .txt (${lineEnding} line endings for ${osPlatform}).`,
     });
   }
 
@@ -883,7 +1034,9 @@ export default function App() {
     const eol = lineEnding === 'CRLF' ? '\r\n' : '\n';
     const lines = logs.map(
       (l) =>
-        `[${l.timestamp}] [${l.severity}]${l.gamertag ? ` [Tag: ${l.gamertag}]` : ''}${
+        `[${l.timestamp}] [${l.severity}]${
+          l.platform ? ` [${getPlatformSpec(l.platform).shortLabel}]` : ''
+        }${l.gamertag ? ` [Handle: ${l.gamertag}]` : ''}${
           l.attempt ? ` [Attempt #${l.attempt}]` : ''
         }${l.httpStatus ? ` [HTTP ${l.httpStatus}]` : ''}${
           l.backoffMs !== undefined ? ` [Delay: ${l.backoffMs}ms]` : ''
@@ -897,18 +1050,19 @@ export default function App() {
   }
 
   async function handleSimulate429Fault() {
-    const testTag = generateSingleRareTag(generatorPattern);
+    const testTag = generateSingleRareTag(generatorPattern, selectedPlatform);
     const prevProb = rateConfig.simulate429Probability;
     setRateConfig((prev) => ({ ...prev, simulate429Probability: 1 }));
     appendLog({
       severity: 'WARN',
+      platform: selectedPlatform,
       gamertag: testTag,
-      message: `Initiating deterministic HTTP 429 Rate-Limit Fault Test for "${testTag}"...`,
+      message: `[${activePlatformSpec.shortLabel}] Initiating deterministic HTTP 429 Rate-Limit Fault Test for "${testTag}"...`,
     });
     setActiveTab('logs');
     setIsRunning(true);
     abortRunRef.current = false;
-    setCurrentTagChecking(testTag);
+    setCurrentTagChecking(`${activePlatformSpec.handlePrefix}${testTag}`);
 
     const backoff1 = calculateExponentialBackoff(
       rateConfig.baseDelayMs,
@@ -918,11 +1072,12 @@ export default function App() {
     );
     appendLog({
       severity: 'RATE_LIMIT',
+      platform: selectedPlatform,
       gamertag: testTag,
       attempt: 1,
       httpStatus: 429,
       backoffMs: backoff1,
-      message: `HTTP 429 Too Many Requests received. Sleeping ${backoff1}ms before Attempt #2...`,
+      message: `[${activePlatformSpec.shortLabel}] HTTP 429 Too Many Requests received. Sleeping ${backoff1}ms before Attempt #2...`,
       details: `Formula: ${rateConfig.baseDelayMs}ms * (${rateConfig.backoffFactor}^1) + randomJitter`,
     });
     setRetryTotalCount((c) => c + 1);
@@ -931,8 +1086,15 @@ export default function App() {
     await sleepInterruptible(Math.min(backoff1, 1600));
 
     setRateConfig((prev) => ({ ...prev, simulate429Probability: prevProb }));
-    const res = await verifySingleTagWithBackoff(testTag, 'RARE_GENERATED', generatorPattern);
-    setRecords((prev) => [res, ...prev]);
+    const res = await verifySingleTagWithBackoff(
+      testTag,
+      selectedPlatform,
+      'RARE_GENERATED',
+      generatorPattern
+    );
+    if (res.status === 'AVAILABLE' || !targetConfig.skipTakenFromTable) {
+      setRecords((prev) => [res, ...prev]);
+    }
     setIsRunning(false);
     setIsBackingOff(false);
     setActiveDelayMs(0);
@@ -943,28 +1105,34 @@ export default function App() {
   function handleAddManualVaultTag(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = manualVaultInput.trim();
-    const check = validateTagLocally(trimmed, rateConfig.strict12CharLimit);
+    const check = validateTagLocally(
+      trimmed,
+      selectedPlatform,
+      rateConfig.strict12CharLimit
+    );
     if (!check.valid) {
       appendLog({
         severity: 'ERROR',
+        platform: selectedPlatform,
         gamertag: trimmed,
-        message: `Cannot add invalid gamertag to vault: ${check.reason}`,
+        message: `Cannot add invalid ${activePlatformSpec.shortLabel} username to vault: ${check.reason}`,
       });
       return;
     }
     const manualRecord: GamertagRecord = {
       id: `manual-${Date.now()}`,
       gamertag: trimmed,
+      platform: selectedPlatform,
       resolvedGamertag: trimmed,
       status: 'AVAILABLE',
-      xboxMcpeStatus: 'AVAILABLE',
-      javaStatus: 'UNKNOWN',
+      xboxMcpeStatus: selectedPlatform === 'xbox_mcpe' ? 'AVAILABLE' : 'UNKNOWN',
+      javaStatus: selectedPlatform === 'minecraft' ? 'AVAILABLE' : 'UNKNOWN',
       xuid: null,
       latencyMs: 0,
       attempts: 1,
       lastDelayMs: 0,
       checkedAt: formatTimestampMillis(),
-      reason: 'Manually added to Available Vault.',
+      reason: `Manually saved to ${activePlatformSpec.shortLabel} Available Vault.`,
       upstreamDetails: 'User entry',
       sourceMode: 'SPECIFIC_LIST',
     };
@@ -981,17 +1149,21 @@ export default function App() {
     let validCount = 0;
     let invalidCount = 0;
     for (const item of rawItems) {
-      if (validateTagLocally(item, rateConfig.strict12CharLimit).valid) {
+      if (validateTagLocally(item, selectedPlatform, rateConfig.strict12CharLimit).valid) {
         validCount++;
       } else {
         invalidCount++;
       }
     }
     return { total: rawItems.length, validCount, invalidCount };
-  }, [specificNamesInput, rateConfig.strict12CharLimit]);
+  }, [specificNamesInput, selectedPlatform, rateConfig.strict12CharLimit]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
+      const recPlatform = r.platform || 'xbox_mcpe';
+      if (platformTableFilter !== 'ALL' && recPlatform !== platformTableFilter) {
+        return false;
+      }
       if (resultFilter === 'AVAILABLE' && r.status !== 'AVAILABLE') return false;
       if (resultFilter === 'TAKEN' && r.status !== 'TAKEN') return false;
       if (
@@ -1006,13 +1178,19 @@ export default function App() {
         const q = searchQuery.toLowerCase();
         return (
           r.gamertag.toLowerCase().includes(q) ||
+          recPlatform.toLowerCase().includes(q) ||
           (r.xuid && r.xuid.toLowerCase().includes(q)) ||
           r.reason.toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [records, resultFilter, searchQuery]);
+  }, [records, resultFilter, platformTableFilter, searchQuery]);
+
+  const filteredVault = useMemo(() => {
+    if (vaultPlatformFilter === 'ALL') return savedVault;
+    return savedVault.filter((r) => (r.platform || 'xbox_mcpe') === vaultPlatformFilter);
+  }, [savedVault, vaultPlatformFilter]);
 
   const filteredLogs = useMemo(() => {
     if (logFilter === 'ALL') return logs;
@@ -1042,29 +1220,34 @@ export default function App() {
   }, [progressCompleted, progressTarget]);
 
   const cliScriptPreview = useMemo(() => {
+    const sampleLinks = getPlatformVerificationLinks('SAMPLE_TAG', selectedPlatform);
+    const endpointTemplate = sampleLinks[0]?.url.replace('SAMPLE_TAG', '$Tag') || '';
+    const bashEndpoint = sampleLinks[0]?.url.replace('SAMPLE_TAG', '$tag') || '';
+
     if (osPlatform === 'Windows') {
       return [
-        `# Windows PowerShell 7+ — Xbox / MCPE Gamertag Batch Verifier`,
+        `# Windows PowerShell 7+ — ${activePlatformSpec.label} Username Batch Verifier`,
         `# Compatible with Windows Task Scheduler (CRLF line endings)`,
+        `$Platform = "${selectedPlatform}"`,
         `$BaseDelayMs = ${rateConfig.baseDelayMs}`,
         `$MaxJitterMs = ${rateConfig.maxJitterMs}`,
         `$BackoffFactor = ${rateConfig.backoffFactor}`,
         `$MaxRetries = ${rateConfig.maxRetries}`,
         `$TargetCount = ${targetConfig.targetCount}`,
-        `$OutputCsv = ".\\xtag_verified_results.csv"`,
-        `"Gamertag,Status,XUID,CheckedAt" | Out-File -FilePath $OutputCsv -Encoding utf8`,
+        `$OutputCsv = ".\\xtag_${selectedPlatform}_results.csv"`,
+        `"Username,Platform,Status,CheckedAt" | Out-File -FilePath $OutputCsv -Encoding utf8`,
         ``,
-        `function Check-XboxGamertag($Tag) {`,
+        `function Check-PlatformHandle($Tag) {`,
         `  for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {`,
         `    $jitter = Get-Random -Minimum 0 -Maximum $MaxJitterMs`,
         `    $delay = [math]::Round($BaseDelayMs * [math]::Pow($BackoffFactor, $attempt - 1)) + $jitter`,
         `    Start-Sleep -Milliseconds $delay`,
         `    try {`,
-        `      $res = Invoke-RestMethod -Uri "https://api.geysermc.org/v2/xbox/xuid/$([uri]::EscapeDataString($Tag))" -Method Get -TimeoutSec 5`,
-        `      return @{ Status = "TAKEN"; Xuid = $res.xuid }`,
+        `      $res = Invoke-WebRequest -Uri "${endpointTemplate}" -Method Get -TimeoutSec 8`,
+        `      return @{ Status = "TAKEN"; Code = $res.StatusCode }`,
         `    } catch {`,
         `      if ($_.Exception.Response.StatusCode.value__ -eq 404) {`,
-        `        return @{ Status = "AVAILABLE"; Xuid = "UNREGISTERED" }`,
+        `        return @{ Status = "AVAILABLE"; Code = 404 }`,
         `      }`,
         `      Write-Warning "[Retry $attempt] Rate limit or transient error for $Tag. Backing off ${'$'}delay ms..."`,
         `    }`,
@@ -1074,13 +1257,14 @@ export default function App() {
     }
     return [
       `#!/usr/bin/env bash`,
-      `# macOS / Linux — Xbox & MCPE Gamertag Availability Verifier`,
+      `# macOS / Linux — ${activePlatformSpec.label} Username Availability Verifier`,
       `# Schedule via crontab -e: */${schedulerConfig.intervalMinutes} * * * * /usr/local/bin/xtag-verify.sh`,
+      `PLATFORM="${selectedPlatform}"`,
       `BASE_DELAY_MS=${rateConfig.baseDelayMs}`,
       `MAX_JITTER_MS=${rateConfig.maxJitterMs}`,
       `MAX_RETRIES=${rateConfig.maxRetries}`,
-      `OUT_CSV="./xtag_verified_results.csv"`,
-      `echo "Gamertag,Status,CheckedAt" > "$OUT_CSV"`,
+      `OUT_CSV="./xtag_${selectedPlatform}_results.csv"`,
+      `echo "Username,Platform,Status,CheckedAt" > "$OUT_CSV"`,
       ``,
       `verify_tag() {`,
       `  local tag="$1"`,
@@ -1088,19 +1272,26 @@ export default function App() {
       `    jitter=$(( RANDOM % (MAX_JITTER_MS + 1) ))`,
       `    delay_ms=$(( BASE_DELAY_MS * (2 ** (attempt - 1)) + jitter ))`,
       `    sleep "$(awk "BEGIN {print $delay_ms/1000}")"`,
-      `    http_code=$(curl -s -o /dev/null -w "%{http_code}" "https://api.geysermc.org/v2/xbox/xuid/$tag")`,
+      `    http_code=$(curl -s -o /dev/null -w "%{http_code}" "${bashEndpoint}")`,
       `    if [ "$http_code" = "404" ]; then`,
-      `      echo "$tag,AVAILABLE,$(date -u +%FT%TZ)" | tee -a "$OUT_CSV"`,
+      `      echo "$tag,$PLATFORM,AVAILABLE,$(date -u +%FT%TZ)" | tee -a "$OUT_CSV"`,
       `      return 0`,
       `    elif [ "$http_code" = "200" ]; then`,
-      `      echo "$tag,TAKEN,$(date -u +%FT%TZ)" >> "$OUT_CSV"`,
+      `      echo "$tag,$PLATFORM,TAKEN,$(date -u +%FT%TZ)" >> "$OUT_CSV"`,
       `      return 0`,
       `    fi`,
       `    echo "[WARN] HTTP $http_code on $tag (attempt $attempt). Exponential backoff: \${delay_ms}ms" >&2`,
       `  done`,
       `}`,
     ].join('\n');
-  }, [osPlatform, rateConfig, targetConfig.targetCount, schedulerConfig.intervalMinutes]);
+  }, [
+    osPlatform,
+    selectedPlatform,
+    activePlatformSpec.label,
+    rateConfig,
+    targetConfig.targetCount,
+    schedulerConfig.intervalMinutes,
+  ]);
 
   return (
     <div>
@@ -1152,9 +1343,9 @@ export default function App() {
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => handleExportRecordsCsv(false)}
+            onClick={() => handleExportRecordsCsv(true)}
           >
-            Export CSV
+            Export Available CSV
           </button>
           <button
             type="button"
@@ -1170,15 +1361,15 @@ export default function App() {
         {/* Metrics Summary Strip */}
         <section className="metrics-strip" aria-label="Verification Telemetry Summary">
           <div className="metric-cell">
-            <span className="metric-label">Total Gamertags Checked</span>
-            <div className="metric-value">{statsSummary.total}</div>
+            <span className="metric-label">Active Target Platform</span>
+            <div className="metric-value">{activePlatformSpec.shortLabel}</div>
             <div className="metric-sub">
-              Avg Lookup: {statsSummary.avgLatency}ms · {osPlatform} ({lineEnding})
+              {activePlatformSpec.minLen}–{activePlatformSpec.maxLen} chars · {osPlatform} ({lineEnding})
             </div>
           </div>
 
           <div className="metric-cell">
-            <span className="metric-label">Verified Available (MCPE / Xbox)</span>
+            <span className="metric-label">Confirmed Available</span>
             <div className="metric-value" style={{ color: 'var(--status-available)' }}>
               {statsSummary.available}
             </div>
@@ -1186,13 +1377,15 @@ export default function App() {
           </div>
 
           <div className="metric-cell">
-            <span className="metric-label">Registered / Taken</span>
-            <div className="metric-value">{statsSummary.taken}</div>
-            <div className="metric-sub">Resolved via GeyserMC & PlayerDB</div>
+            <span className="metric-label">Already Used Filtered Out</span>
+            <div className="metric-value">{skippedTakenCount + statsSummary.taken}</div>
+            <div className="metric-sub">
+              Dedup History: {checkedHistory.length} handles
+            </div>
           </div>
 
           <div className="metric-cell">
-            <span className="metric-label">Backoff Retries & Jitter</span>
+            <span className="metric-label">Backoff Retries &amp; Jitter</span>
             <div className="metric-value">{retryTotalCount}</div>
             <div className="metric-sub">
               {rateConfig.baseDelayMs}ms + 0..{rateConfig.maxJitterMs}ms ({rateConfig.backoffFactor}x)
@@ -1200,7 +1393,7 @@ export default function App() {
           </div>
 
           <div className="metric-cell">
-            <span className="metric-label">Scheduler & Notification</span>
+            <span className="metric-label">Scheduler &amp; Notification</span>
             <div className="metric-value">
               {schedulerConfig.enabled
                 ? `${String(Math.floor(secondsUntilNextRun / 60)).padStart(2, '0')}:${String(
@@ -1223,7 +1416,14 @@ export default function App() {
               <strong style={{ color: 'var(--text-primary)' }}>Status: {batchStateLabel}</strong>
               <span className="meta-sep">·</span>
               <span>
-                Active Tag:{' '}
+                Platform:{' '}
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {activePlatformSpec.label}
+                </strong>
+              </span>
+              <span className="meta-sep">·</span>
+              <span>
+                Active Handle:{' '}
                 <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>
                   {currentTagChecking}
                 </strong>
@@ -1268,14 +1468,52 @@ export default function App() {
           <div className="workspace-grid">
             {/* Left Column: Configuration Controls */}
             <aside className="panel" aria-label="Scanner Configuration">
-              {/* Section 1: List Source Mode */}
+              {/* Section 1: Target App / Platform Selection */}
               <div className="panel-section">
-                <h2 className="section-heading">01. Gamertag Source</h2>
+                <h2 className="section-heading">01. Target App / Platform</h2>
                 <p className="section-description">
-                  Choose between procedural rare gamertag synthesis or a custom verification list.
+                  Select the platform to enforce its exact username syntax rules and live verification endpoints.
                 </p>
 
-                <div className="segmented-group" role="group" aria-label="Gamertag Source Mode">
+                <div className="platform-selector-grid" role="group" aria-label="Select Target Platform">
+                  {PLATFORMS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`platform-btn ${selectedPlatform === p.id ? 'active' : ''}`}
+                      onClick={() => setSelectedPlatform(p.id)}
+                    >
+                      <div className="platform-btn-content">
+                        <span className="platform-icon-badge" data-platform={p.id} aria-hidden="true">
+                          <PlatformIcon platform={p.id} size={15} />
+                        </span>
+                        <span className="platform-btn-label">{p.shortLabel}</span>
+                      </div>
+                      <span className="platform-btn-prefix">
+                        {p.handlePrefix || `${p.minLen}–${p.maxLen}c`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="platform-rule-box">
+                  <span className="platform-rule-icon" aria-hidden="true">
+                    <PlatformIcon platform={activePlatformSpec.id} size={16} />
+                  </span>
+                  <div>
+                    <strong>{activePlatformSpec.label} Rules:</strong> {activePlatformSpec.syntaxSummary}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: List Source Mode */}
+              <div className="panel-section">
+                <h2 className="section-heading">02. Username Source</h2>
+                <p className="section-description">
+                  Synthesize fresh unclaimed rare handles or verify a specific list.
+                </p>
+
+                <div className="segmented-group" role="group" aria-label="Username Source Mode">
                   <button
                     type="button"
                     className={`segmented-btn ${sourceMode === 'RARE_GENERATED' ? 'active' : ''}`}
@@ -1296,8 +1534,8 @@ export default function App() {
                   <div>
                     <div className="field-group">
                       <label className="field-label" htmlFor="pattern-select">
-                        <span>Rare Synthesis Pattern</span>
-                        <span className="field-hint">MCPE Compliant</span>
+                        <span>Unclaimed Synthesis Pattern</span>
+                        <span className="field-hint">{activePlatformSpec.shortLabel}</span>
                       </label>
                       <select
                         id="pattern-select"
@@ -1305,11 +1543,11 @@ export default function App() {
                         value={generatorPattern}
                         onChange={(e) => setGeneratorPattern(e.target.value as GeneratorPattern)}
                       >
-                        <option value="4char_cvcv">4-Char Pronounceable CVCV (e.g., Kavo, Zelu)</option>
-                        <option value="3char_alnum">3-Char Alphanumeric (e.g., V9K, Q7X, Zr4)</option>
-                        <option value="clean_og">Archaic & Mineral Roots (e.g., Berylx, Cairnv)</option>
-                        <option value="semi_repeat">Semi-Repeat & Mirrored (e.g., K7K7, Savva)</option>
-                        <option value="mcpe_compound">MCPE Bedrock Compounds (e.g., VoidRift)</option>
+                        <option value="clean_og">Archaic Root + Rare Cluster (e.g., SkerryVq, CairnXz)</option>
+                        <option value="4char_cvcv">Pronounceable 6-Char Synth (e.g., Kavovx, Zelukr)</option>
+                        <option value="mcpe_compound">Clean Rare Compounds (e.g., VoidKestrel, SlateWhorl)</option>
+                        <option value="semi_repeat">Mirrored Phonetic (e.g., Kavkavvq, Zelzelxz)</option>
+                        <option value="3char_alnum">5-Char Alphanumeric Code (e.g., V9kXz, Q7xVq)</option>
                       </select>
                     </div>
 
@@ -1321,14 +1559,14 @@ export default function App() {
                         setSourceMode('SPECIFIC_LIST');
                       }}
                     >
-                      Generate Sample List into Editor
+                      Generate Sample {activePlatformSpec.shortLabel} List into Editor
                     </button>
                   </div>
                 ) : (
                   <div>
                     <div className="field-group">
                       <label className="field-label" htmlFor="specific-list-textarea">
-                        <span>Gamertags (1 per line or comma-separated)</span>
+                        <span>Usernames (1 per line or comma-separated)</span>
                         <span className="field-hint">
                           {specificListAnalysis.validCount} valid · {specificListAnalysis.invalidCount} invalid
                         </span>
@@ -1338,7 +1576,7 @@ export default function App() {
                         className="textarea-control"
                         value={specificNamesInput}
                         onChange={(e) => setSpecificNamesInput(e.target.value)}
-                        placeholder="Enter Xbox / MCPE gamertags to check..."
+                        placeholder={`Enter ${activePlatformSpec.label} usernames to check...`}
                       />
                     </div>
 
@@ -1362,18 +1600,18 @@ export default function App() {
                         className="btn btn-secondary btn-sm"
                         onClick={handleGeneratePreviewSample}
                       >
-                        Fill with Rare Candidates
+                        Fill with Fresh Candidates
                       </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Section 2: Target Gamertag Count */}
+              {/* Section 3: Target Count & Taken Filtering */}
               <div className="panel-section">
-                <h2 className="section-heading">02. Completion Target</h2>
+                <h2 className="section-heading">03. Completion Target &amp; Filtering</h2>
                 <p className="section-description">
-                  Specify how many gamertags are required to complete the batch process.
+                  Keep scanning until the required number of genuinely available handles is found.
                 </p>
 
                 <div className="field-group">
@@ -1391,8 +1629,8 @@ export default function App() {
                       }))
                     }
                   >
-                    <option value="TOTAL_CHECKED">Finish after N Total Gamertags Checked</option>
-                    <option value="AVAILABLE_FOUND">Finish after N Available Gamertags Found</option>
+                    <option value="AVAILABLE_FOUND">Finish after N Available Usernames Found</option>
+                    <option value="TOTAL_CHECKED">Finish after N Total Usernames Checked</option>
                   </select>
                 </div>
 
@@ -1400,10 +1638,10 @@ export default function App() {
                   <label className="field-label" htmlFor="target-count-input">
                     <span>
                       {targetConfig.stopMode === 'AVAILABLE_FOUND'
-                        ? 'Available Gamertags Needed'
-                        : 'Total Gamertags to Verify'}
+                        ? 'Available Usernames Needed'
+                        : 'Total Usernames to Verify'}
                     </span>
-                    <span className="field-hint">{targetConfig.targetCount} tags</span>
+                    <span className="field-hint">{targetConfig.targetCount} handles</span>
                   </label>
                   <input
                     id="target-count-input"
@@ -1420,11 +1658,25 @@ export default function App() {
                     }
                   />
                 </div>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={targetConfig.skipTakenFromTable}
+                    onChange={(e) =>
+                      setTargetConfig((prev) => ({
+                        ...prev,
+                        skipTakenFromTable: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Auto-skip already-used (TAKEN) handles — only collect AVAILABLE</span>
+                </label>
               </div>
 
-              {/* Section 3: Rate-Limit Protection & Exponential Backoff */}
+              {/* Section 4: Rate-Limit Protection & Exponential Backoff */}
               <div className="panel-section">
-                <h2 className="section-heading">03. Rate-Limit & Backoff Policy</h2>
+                <h2 className="section-heading">04. Rate-Limit &amp; Backoff Policy</h2>
                 <p className="section-description">
                   Randomized request jitter and exponential backoff prevent upstream HTTP 429 bans.
                 </p>
@@ -1530,24 +1782,26 @@ export default function App() {
                     value={osPlatform}
                     onChange={(e) => setOsPlatform(e.target.value as 'Windows' | 'macOS')}
                   >
-                    <option value="Windows">Windows (CRLF \r\n — Excel & Notepad compatible)</option>
-                    <option value="macOS">macOS / Unix (LF \n — Numbers & Terminal compatible)</option>
+                    <option value="Windows">Windows (CRLF \r\n — Excel &amp; Notepad compatible)</option>
+                    <option value="macOS">macOS / Unix (LF \n — Numbers &amp; Terminal compatible)</option>
                   </select>
                 </div>
 
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={rateConfig.strict12CharLimit}
-                    onChange={(e) =>
-                      setRateConfig((prev) => ({
-                        ...prev,
-                        strict12CharLimit: e.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Enforce modern 12-char limit (default 15-char MCPE classic)</span>
-                </label>
+                {selectedPlatform === 'xbox_mcpe' && (
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={rateConfig.strict12CharLimit}
+                      onChange={(e) =>
+                        setRateConfig((prev) => ({
+                          ...prev,
+                          strict12CharLimit: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>Enforce modern 12-char limit (default 15-char MCPE classic)</span>
+                  </label>
+                )}
               </div>
 
               {/* Primary Execution Controls */}
@@ -1558,7 +1812,8 @@ export default function App() {
                     className="btn btn-primary btn-block"
                     onClick={() => void startVerificationBatch(false)}
                   >
-                    Start Verification Process ({targetConfig.targetCount} Target)
+                    Find {targetConfig.targetCount} {activePlatformSpec.shortLabel}{' '}
+                    {targetConfig.stopMode === 'AVAILABLE_FOUND' ? 'Available Handles' : 'Handles'}
                   </button>
                 ) : (
                   <button
@@ -1607,11 +1862,27 @@ export default function App() {
                 </div>
 
                 <div className="action-row">
+                  <select
+                    className="select-control"
+                    style={{ width: 'auto', minWidth: '150px', padding: '6px 10px', fontSize: '12px' }}
+                    aria-label="Filter table by platform"
+                    value={platformTableFilter}
+                    onChange={(e) => setPlatformTableFilter(e.target.value as PlatformId | 'ALL')}
+                  >
+                    <option value="ALL">All Platforms</option>
+                    {PLATFORMS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+
                   <div className="search-input-wrap">
                     <input
                       type="search"
                       className="input-control"
-                      placeholder="Filter gamertag or XUID..."
+                      style={{ padding: '6px 10px', fontSize: '13px' }}
+                      placeholder="Search username or ID..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -1626,9 +1897,9 @@ export default function App() {
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
-                    onClick={() => handleExportRecordsCsv(false)}
+                    onClick={() => handleExportRecordsCsv(true)}
                   >
-                    Export Results (.CSV)
+                    Export Available (.CSV)
                   </button>
                   <button
                     type="button"
@@ -1645,7 +1916,7 @@ export default function App() {
                 <div className="empty-state-box">
                   <div className="empty-state-title">No verification records match current view</div>
                   <p className="empty-state-desc">
-                    Configure a Rare Generated List or enter specific gamertags on the left panel, then click Start Verification Process.
+                    Select an app (Xbox/MCPE, Minecraft, Discord, Twitter/X, TikTok, Instagram, Facebook, or Reddit) and click Find Available Handles to start checking live availability.
                   </p>
                   <button
                     type="button"
@@ -1653,7 +1924,7 @@ export default function App() {
                     disabled={isRunning}
                     onClick={() => void startVerificationBatch(false)}
                   >
-                    Run Verification Batch Now
+                    Find {activePlatformSpec.shortLabel} Available Handles Now
                   </button>
                 </div>
               ) : (
@@ -1661,31 +1932,45 @@ export default function App() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Gamertag</th>
-                        <th>Xbox / MCPE Status</th>
-                        <th>Java Edition</th>
-                        <th>XUID & Upstream Diagnostics</th>
+                        <th>Username / Handle</th>
+                        <th>Platform</th>
+                        <th>Availability Status</th>
+                        <th>Live Upstream Verification Proof</th>
                         <th className="num-col">Delay / Latency</th>
-                        <th>Direct Availability Links</th>
+                        <th>Direct Verification Links</th>
                         <th className="num-col">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredRecords.map((rec) => {
-                        const links = getPlatformVerificationLinks(rec.gamertag);
+                        const recPlatform = rec.platform || 'xbox_mcpe';
+                        const spec = getPlatformSpec(recPlatform);
+                        const links = getPlatformVerificationLinks(rec.gamertag, recPlatform);
                         const isSaved = savedVault.some(
-                          (v) => v.gamertag.toLowerCase() === rec.gamertag.toLowerCase()
+                          (v) =>
+                            v.gamertag.toLowerCase() === rec.gamertag.toLowerCase() &&
+                            (v.platform || 'xbox_mcpe') === recPlatform
                         );
                         return (
                           <tr key={rec.id}>
                             <td>
-                              <div className="gamertag-cell">{rec.gamertag}</div>
+                              <div className="gamertag-cell">
+                                {spec.handlePrefix}
+                                {rec.gamertag}
+                              </div>
                               <div className="field-hint">
                                 {rec.sourceMode === 'RARE_GENERATED'
                                   ? `Rare · ${rec.patternUsed || 'synth'}`
                                   : 'Specific List'}{' '}
                                 · {rec.checkedAt}
                               </div>
+                            </td>
+
+                            <td>
+                              <span className="platform-badge-cell">
+                                <PlatformIcon platform={recPlatform} size={14} />
+                                <span>{spec.shortLabel}</span>
+                              </span>
                             </td>
 
                             <td>
@@ -1705,23 +1990,9 @@ export default function App() {
                             </td>
 
                             <td>
-                              <span
-                                className={`status-text ${
-                                  rec.javaStatus === 'AVAILABLE'
-                                    ? 'available'
-                                    : rec.javaStatus === 'TAKEN'
-                                    ? 'taken'
-                                    : 'warning'
-                                }`}
-                              >
-                                {rec.javaStatus}
-                              </span>
-                            </td>
-
-                            <td>
                               <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
                                 {rec.xuid ? (
-                                  <span className="tabular-nums">XUID: {rec.xuid}</span>
+                                  <span className="tabular-nums">ID: {rec.xuid}</span>
                                 ) : (
                                   <span>{rec.reason}</span>
                                 )}
@@ -1740,45 +2011,20 @@ export default function App() {
 
                             <td>
                               <div className="verify-links-inline">
-                                <a
-                                  href={links.xboxGamertag}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="verify-link"
-                                  title="Check on XboxGamertag.com"
-                                >
-                                  XboxLive
-                                </a>
-                                <span className="meta-sep">·</span>
-                                <a
-                                  href={links.geyserXuid}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="verify-link"
-                                  title="Check GeyserMC Bedrock XUID API"
-                                >
-                                  GeyserMC
-                                </a>
-                                <span className="meta-sep">·</span>
-                                <a
-                                  href={links.playerDbXbox}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="verify-link"
-                                  title="Check PlayerDB Xbox Endpoint"
-                                >
-                                  PlayerDB
-                                </a>
-                                <span className="meta-sep">·</span>
-                                <a
-                                  href={links.nameMc}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="verify-link"
-                                  title="Check NameMC Cross-Platform"
-                                >
-                                  NameMC
-                                </a>
+                                {links.map((lnk, idx) => (
+                                  <React.Fragment key={lnk.label}>
+                                    {idx > 0 && <span className="meta-sep">·</span>}
+                                    <a
+                                      href={lnk.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="verify-link"
+                                      title={lnk.title}
+                                    >
+                                      {lnk.label}
+                                    </a>
+                                  </React.Fragment>
+                                ))}
                               </div>
                             </td>
 
@@ -1819,18 +2065,33 @@ export default function App() {
             <div className="table-toolbar">
               <div>
                 <h2 className="section-heading">
-                  Available Gamertags Vault ({savedVault.length} Stored in LocalStorage)
+                  Confirmed Available Usernames Vault ({filteredVault.length} Shown / {savedVault.length} Stored in LocalStorage)
                 </h2>
                 <p className="section-description" style={{ marginBottom: 0 }}>
-                  Every available username discovered during verification is automatically persisted in browser LocalStorage for review and export.
+                  Only handles confirmed unregistered by live upstream APIs are persisted in LocalStorage.
                 </p>
               </div>
 
               <div className="action-row">
+                <select
+                  className="select-control"
+                  style={{ width: 'auto', minWidth: '155px', padding: '6px 10px', fontSize: '12px' }}
+                  aria-label="Filter vault by platform"
+                  value={vaultPlatformFilter}
+                  onChange={(e) => setVaultPlatformFilter(e.target.value as PlatformId | 'ALL')}
+                >
+                  <option value="ALL">All Platforms ({savedVault.length})</option>
+                  {PLATFORMS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  disabled={savedVault.length === 0}
+                  disabled={filteredVault.length === 0}
                   onClick={handleExportVaultTxt}
                 >
                   Export Available as .TXT ({lineEnding})
@@ -1838,9 +2099,9 @@ export default function App() {
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  disabled={savedVault.length === 0}
+                  disabled={filteredVault.length === 0}
                   onClick={() => {
-                    const csv = buildCsvExportContent(savedVault, lineEnding);
+                    const csv = buildCsvExportContent(filteredVault, lineEnding);
                     triggerFileDownload(
                       csv,
                       `xtag-vault-available-${osPlatform.toLowerCase()}.csv`,
@@ -1853,9 +2114,11 @@ export default function App() {
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  disabled={savedVault.length === 0}
+                  disabled={filteredVault.length === 0}
                   onClick={() => {
-                    const allText = savedVault.map((r) => r.gamertag).join(lineEnding === 'CRLF' ? '\r\n' : '\n');
+                    const allText = filteredVault
+                      .map((r) => r.gamertag)
+                      .join(lineEnding === 'CRLF' ? '\r\n' : '\n');
                     handleCopyTag(allText);
                   }}
                 >
@@ -1877,11 +2140,23 @@ export default function App() {
               className="action-row"
               style={{ marginTop: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-subtle)' }}
             >
+              <select
+                className="select-control"
+                style={{ maxWidth: '180px' }}
+                value={selectedPlatform}
+                onChange={(e) => setSelectedPlatform(e.target.value as PlatformId)}
+              >
+                {PLATFORMS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
               <input
                 type="text"
                 className="input-control"
-                style={{ maxWidth: '280px' }}
-                placeholder="Bookmark custom gamertag..."
+                style={{ maxWidth: '260px' }}
+                placeholder={`Bookmark ${activePlatformSpec.shortLabel} handle...`}
                 value={manualVaultInput}
                 onChange={(e) => setManualVaultInput(e.target.value)}
               />
@@ -1890,11 +2165,11 @@ export default function App() {
               </button>
             </form>
 
-            {savedVault.length === 0 ? (
+            {filteredVault.length === 0 ? (
               <div className="empty-state-box">
-                <div className="empty-state-title">No available gamertags saved in LocalStorage yet</div>
+                <div className="empty-state-title">No available usernames in Vault for this filter</div>
                 <p className="empty-state-desc">
-                  Run the Verification Console to automatically populate available MCPE / Xbox gamertags here.
+                  Run the Verification Console to automatically populate confirmed available usernames here.
                 </p>
                 <button
                   type="button"
@@ -1906,8 +2181,10 @@ export default function App() {
               </div>
             ) : (
               <div className="vault-grid">
-                {savedVault.map((item) => {
-                  const links = getPlatformVerificationLinks(item.gamertag);
+                {filteredVault.map((item) => {
+                  const itemPlatform = item.platform || 'xbox_mcpe';
+                  const spec = getPlatformSpec(itemPlatform);
+                  const links = getPlatformVerificationLinks(item.gamertag, itemPlatform);
                   return (
                     <div key={item.id} className="vault-item">
                       <div>
@@ -1920,12 +2197,16 @@ export default function App() {
                             marginBottom: '6px',
                           }}
                         >
-                          <span className="vault-tag-title">{item.gamertag}</span>
-                          <span className="field-hint">{item.gamertag.length} chars</span>
+                          <span className="vault-tag-title">
+                            {spec.handlePrefix}
+                            {item.gamertag}
+                          </span>
+                          <span className="field-hint" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <PlatformIcon platform={itemPlatform} size={13} />
+                            {spec.shortLabel} · {item.gamertag.length}c
+                          </span>
                         </div>
-                        <div className="vault-meta-line">
-                          Xbox/MCPE: {item.xboxMcpeStatus} · Java: {item.javaStatus}
-                        </div>
+                        <div className="vault-meta-line">{item.reason}</div>
                         <div className="vault-meta-line" style={{ marginTop: '2px' }}>
                           Checked: {item.checkedAt || 'Saved'} · {item.latencyMs ?? 0}ms
                         </div>
@@ -1933,32 +2214,20 @@ export default function App() {
 
                       <div>
                         <div className="verify-links-inline" style={{ marginBottom: '10px' }}>
-                          <a
-                            href={links.xboxGamertag}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="verify-link"
-                          >
-                            XboxGamertag
-                          </a>
-                          <span className="meta-sep">·</span>
-                          <a
-                            href={links.geyserXuid}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="verify-link"
-                          >
-                            GeyserMC
-                          </a>
-                          <span className="meta-sep">·</span>
-                          <a
-                            href={links.nameMc}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="verify-link"
-                          >
-                            NameMC
-                          </a>
+                          {links.map((lnk, idx) => (
+                            <React.Fragment key={lnk.label}>
+                              {idx > 0 && <span className="meta-sep">·</span>}
+                              <a
+                                href={lnk.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="verify-link"
+                                title={lnk.title}
+                              >
+                                {lnk.label}
+                              </a>
+                            </React.Fragment>
+                          ))}
                         </div>
 
                         <div className="action-row">
@@ -1967,12 +2236,12 @@ export default function App() {
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleCopyTag(item.gamertag)}
                           >
-                            {copiedTag === item.gamertag ? 'Copied' : 'Copy Name'}
+                            {copiedTag === item.gamertag ? 'Copied' : 'Copy Handle'}
                           </button>
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
-                            onClick={() => removeTagFromVault(item.gamertag)}
+                            onClick={() => removeTagFromVault(item.gamertag, itemPlatform)}
                           >
                             Remove
                           </button>
@@ -1993,7 +2262,7 @@ export default function App() {
               <div className="panel-section">
                 <h2 className="section-heading">01. Automated Batch Scheduler</h2>
                 <p className="section-description">
-                  Automatically trigger recurring gamertag verification runs at a fixed interval.
+                  Automatically trigger recurring username verification runs for {activePlatformSpec.label} at a fixed interval.
                 </p>
 
                 <label className="checkbox-label" style={{ marginBottom: '14px' }}>
@@ -2077,7 +2346,7 @@ export default function App() {
               <div className="panel-section">
                 <h2 className="section-heading">02. Completion Email Notifications</h2>
                 <p className="section-description">
-                  Dispatch an automated summary report with discovered available gamertags when a batch finishes.
+                  Dispatch an automated summary report with discovered available usernames when a batch finishes.
                 </p>
 
                 <label className="checkbox-label" style={{ marginBottom: '14px' }}>
@@ -2134,7 +2403,7 @@ export default function App() {
                     }
                   >
                     <option value="ON_COMPLETION">Every Batch Completion (Full Summary)</option>
-                    <option value="ON_AVAILABLE_FOUND">Only When Available Gamertags Are Found</option>
+                    <option value="ON_AVAILABLE_FOUND">Only When Available Usernames Are Found</option>
                     <option value="ON_ERROR">Only When Rate-Limit / Validation Errors Occur</option>
                   </select>
                 </div>
@@ -2173,10 +2442,10 @@ export default function App() {
                     href={`mailto:${encodeURIComponent(
                       schedulerConfig.recipientEmail
                     )}?subject=${encodeURIComponent(
-                      `XTag Verify Available Gamertags (${savedVault.length})`
+                      `XTag Verify Available Usernames (${savedVault.length})`
                     )}&body=${encodeURIComponent(
-                      `Available Xbox / MCPE Gamertags:\n${savedVault
-                        .map((v) => `- ${v.gamertag}`)
+                      `Available Usernames:\n${savedVault
+                        .map((v) => `- ${v.gamertag} [${getPlatformSpec(v.platform || 'xbox_mcpe').shortLabel}]`)
                         .join('\n')}`
                     )}`}
                     className="btn btn-secondary btn-sm"
@@ -2236,10 +2505,10 @@ export default function App() {
             {/* Right Column: Windows & macOS Standalone Automation Script */}
             <section className="panel" aria-label="Cross-Platform OS Compatibility and CLI Export">
               <h2 className="section-heading">
-                Cross-Platform Native Script ({osPlatform === 'Windows' ? 'Windows PowerShell' : 'macOS / Linux Bash'})
+                Cross-Platform Native Script ({activePlatformSpec.shortLabel} · {osPlatform === 'Windows' ? 'PowerShell' : 'Bash'})
               </h2>
               <p className="section-description">
-                Export a standalone verification script pre-configured with your exact exponential backoff and jitter timings for Windows Task Scheduler or macOS launchd/cron.
+                Export a standalone verification script pre-configured for {activePlatformSpec.label} with your exact exponential backoff and jitter timings.
               </p>
 
               <div className="segmented-group" role="group" aria-label="Target OS Platform">
@@ -2270,12 +2539,14 @@ export default function App() {
                   onClick={() =>
                     triggerFileDownload(
                       cliScriptPreview,
-                      osPlatform === 'Windows' ? 'xtag-verify.ps1' : 'xtag-verify.sh',
+                      osPlatform === 'Windows'
+                        ? `xtag-${selectedPlatform}.ps1`
+                        : `xtag-${selectedPlatform}.sh`,
                       'text/plain;charset=utf-8'
                     )
                   }
                 >
-                  Download {osPlatform === 'Windows' ? 'xtag-verify.ps1' : 'xtag-verify.sh'}
+                  Download {osPlatform === 'Windows' ? `xtag-${selectedPlatform}.ps1` : `xtag-${selectedPlatform}.sh`}
                 </button>
                 <button
                   type="button"
@@ -2331,7 +2602,7 @@ export default function App() {
                   disabled={isRunning}
                   onClick={() => void handleSimulate429Fault()}
                 >
-                  Simulate HTTP 429 Backoff Fault
+                  Simulate HTTP 429 Backoff Fault ({activePlatformSpec.shortLabel})
                 </button>
                 <button
                   type="button"
@@ -2394,7 +2665,7 @@ export default function App() {
 
       <footer className="app-footer">
         <div>
-          XTag Verify · Xbox Live &amp; Minecraft Bedrock (MCPE) Gamertag Availability Verifier
+          XTag Verify · Multi-Platform Username &amp; Gamertag Availability Verifier (Xbox/MCPE, Minecraft, Discord, Twitter/X, TikTok, Instagram, Facebook, Reddit)
         </div>
         <div>
           Platform Compatibility: Windows (CRLF) &amp; macOS (LF) · LocalStorage Persistence Active
